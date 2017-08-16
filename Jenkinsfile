@@ -16,7 +16,6 @@ node {
             println HUB_ORG
 			println toolbelt
 
-
     stage('checkout source') {
         // when running in multi-branch job, one must issue this command
         checkout scm
@@ -36,14 +35,7 @@ node {
 		echo rmsg.getClass().getName()
 		println rmsg.length()
 		
-		/*---------------------------------------
-		def sf_username=rmsg.substring(335,369)
-		println sf_username
-		SFDC_USERNAME=sf_username
-		println SFDC_USERNAME
-		password_user= bat returnStout: true script: "\"${toolbelt}/sfdx\" force:user:password:generate --targetusername SFDC_USERNAME"
-		println password_user
-		------------------------------------------------*/
+		
 			def rmsg1=rmsg.substring(rmsg.indexOf("{"))
 			 
 			def robj =new JsonSlurperClassic().parseText(rmsg1)
@@ -67,25 +59,38 @@ node {
 		  stage('Run Apex Test') {
 				
 				
-				bat "if not exist ${RUN_ARTIFACT_DIR} md ${RUN_ARTIFACT_DIR}"          
-                rc = bat returnStatus: true,script: "\"${toolbelt}/sfdx\" force:apex:test:run --testlevel RunLocalTests --outputdir ${RUN_ARTIFACT_DIR} --resultformat tap --targetusername ${SFDC_USERNAME}"
+				bat "if not exist ${RUN_ARTIFACT_DIR} md ${RUN_ARTIFACT_DIR}"   
+				bat "cd ${RUN_ARTIFACT_DIR}"
+				//bat "del * /y"
+				rc = bat returnStatus: true,script: "\"${toolbelt}/sfdx\" force:apex:test:run --testlevel RunLocalTests --outputdir ${RUN_ARTIFACT_DIR} --resultformat tap --targetusername ${SFDC_USERNAME}"
                 if (rc != 0) {
                     error 'apex test run failed'
                 }
 				
             }
-        
-		
+        		
         stage('collect results') {
             junit keepLongStdio: true, testResults: 'test/*-junit.xml'
+			bat "zip -r C:/Nexus/sonatype-work/nexus/storage/SalesforceDx_Test_Results/test.zip ${RUN_ARTIFACT_DIR}"
         }
-        stage ('Covert to MDAPI')
+       
+	   stage ('Covert to MDAPI')
 		{
 		bat "if not exist ${MDAPI_FORMAT} md ${MDAPI_FORMAT}"
 		rc = bat returnStatus: true,script: "\"${toolbelt}/sfdx\" force:source:convert -d ${MDAPI_FORMAT}"
 		bat "git add ${MDAPI_FORMAT}"
 		bat "git commit -m 'changes' "
 		bat "git push origin HEAD:master"		
+		}
+		stage('Deployment Against Sandbox')
+		{
+		 rc = bat returnStatus: true, script: "\"${toolbelt}/sfdx\" force:mdapi:deploy -c -d ${MDAPI_FORMAT} -u test-xzhvdzg5o3nc@demo_company.net -l RunAllTestsInOrg"
+		 
+		}
+		stage('Actual Deployment')
+		{
+		 rc = bat returnStatus: true, script: "\"${toolbelt}/sfdx\" force:mdapi:deploy -d ${MDAPI_FORMAT} -u test-xzhvdzg5o3nc@demo_company.net -l RunAllTestsInOrg"
+		 
 		}
     }
 	
