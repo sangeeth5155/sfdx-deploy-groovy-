@@ -9,7 +9,7 @@ node {
 	
 
     def CONNECTED_APP_CONSUMER_KEY=env.CONNECTED_APP_CONSUMER_KEY_DH
-    def toolbelt = tool 'toolbelt'
+    def toolbelt = tool 'sfdx'
             println SFDC_HOST
             println JWT_KEY_CRED_ID
             println CONNECTED_APP_CONSUMER_KEY
